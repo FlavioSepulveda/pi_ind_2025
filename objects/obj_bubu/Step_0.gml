@@ -12,7 +12,13 @@ var
     _is_touching_wall, 
     _is_on_ground, 
     _wall_jump_dir; 
+var _key_slow = keyboard_check(vk_alt) // NOVO: Usar ALT Esquerdo para Lentidão
 
+// NOVO: Diminuir Velocidade (Para Plataformas Instáveis)
+if (_key_slow) {
+    _target_speed = spd_slow; // AGORA SPD_SLOW ESTÁ DEFINIDA NO CREATE
+}
+// ...
 // --- Lógica de Velocidade baseada na Estamina ---
 if (stamina <= 0)
 {
@@ -78,45 +84,61 @@ vsp = vsp + grav;
 vsp = clamp(vsp, -max_vsp, max_vsp);
 
 // --- Lógica de Pulo e Pulo de Parede ---
-if (is_exhausted) 
+if (is_exhausted) 
 {
-    // Punição: Pulo desabilitado e sem agarre de parede
+    // Punição: Pulo desabilitado e sem agarre de parede (o bloco vazio já impede isso)
 } 
-else 
+else 
 {
-    _is_touching_wall = place_meeting(x + _key_h, y, obj_wall);
-    _is_on_ground = place_meeting(x, y + 1, obj_wall);
-
-    // Pulo de Parede (Agarrar/Wall Slide ATIVADO POR BOTÃO)
+    // --- 1. DEFINIÇÃO DE CONDIÇÕES DE CHÃO E PAREDE (CORRIGIDO) ---
+    
+    // Checa se está tocando uma parede (obj_wall) usando o input horizontal
+    _is_touching_wall = place_meeting(x + _key_h, y, obj_wall);
+    
+    // CORREÇÃO CRÍTICA: Checa obj_wall, obj_platform_pass, e obj_platform_unstable para pouso.
+	_is_on_ground = place_meeting(x, y + 1, obj_wall) || place_meeting(x, y + 1, obj_platform_pass) || place_meeting(x, y + 1, obj_platform_unstable);
+	    
+    // 2. Pulo de Parede (Agarrar/Wall Slide ATIVADO POR BOTÃO)
+    // Se estiver tocando uma parede, no ar, e pressionando o botão de agarrar
     if (_is_touching_wall && !_is_on_ground && _key_grab)
     {
-        // CUSTO CONTÍNUO: Agarrar drena Estamina (USANDO GLOBAL!)
-        stamina -= global.stamina_regen_constancy * 0.5; 
+        // CORREÇÃO: Drena 0.05 de Estamina por frame (Valor Seguro)
+        stamina -= 0.05;
         vsp = 0.5; // Wall Slide
 
-        // Se pular durante o agarre
+        // SE PULAR DURANTE O AGARRE (Wall Jump)
         if (_key_jump)
         {
-            _wall_jump_dir = sign(_key_h); 
-            
-            vsp = _current_jump_force * 1.5; 
-            hsp = -_wall_jump_dir * spd_sprint; 
-            stamina -= global.stamina_drain_walljump * 2; // Custo ALTO (USANDO GLOBAL!)
+            _wall_jump_dir = sign(_key_h); 
+            
+            // Aplica o impulso forte para longe da parede
+            vsp = _current_jump_force * 1.5;
+            hsp = -_wall_jump_dir * spd_sprint; 
+            
+            stamina -= global.stamina_drain_walljump * 2; // Custo ALTO
         }
     }
-    // Pulo Básico (só se estiver no chão E não em Wall Grab)
-    else if (_key_jump && _is_on_ground) 
+    
+    // Pulo Básico (só se estiver no chão E não em Exaustão)
+    else if (_key_jump && _is_on_ground) 
     {
-        vsp = _current_jump_force; 
-        stamina -= global.stamina_drain_walljump; // Custo do Pulo Básico (USANDO GLOBAL!)
+        vsp = _current_jump_force; 
+        stamina -= global.stamina_drain_walljump; // Custo do Pulo Básico
     }
+    
+    // REGENERAÇÃO (só se não estiver agarrando ou em exaustão)
+    else if (!is_exhausted && !_is_touching_wall)
+    {
+        // Se não estiver correndo, regenera o foco lentamente.
+        stamina = min(100, stamina + global.stamina_regen_constancy);
+    }
 }
 #endregion
 
 #region 4
 // 4. COLISÃO ROBUSTA
 
-// Colisão Horizontal
+// Colisão Horizontal (Mantenha o Código Anterior)
 if (place_meeting(x + hsp, y, obj_wall))
 {
     while (!place_meeting(x + sign(hsp), y, obj_wall))
@@ -127,22 +149,75 @@ if (place_meeting(x + hsp, y, obj_wall))
 }
 x = x + hsp;
 
-// Colisão Vertical
-if (place_meeting(x, y + vsp, obj_wall))
+// -----------------------------------------------------------------
+// Colisão Vertical (CÓDIGO FINAL E ROBUSTO)
+// -----------------------------------------------------------------
+
+var _collision_target = noone; 
+var _inst_instable = noone; // Variável para armazenar a plataforma instável
+
+
+// 1. TRATAMENTO DA PLATAFORMA PASS-THROUGH
+if (vsp > 0) 
 {
-    while (!place_meeting(x, y + sign(vsp), obj_wall))
+    var _inst_pass = instance_place(x, y + vsp, obj_platform_pass);
+
+    if (_inst_pass != noone && bbox_bottom <= _inst_pass.y) 
+    {
+        _collision_target = _inst_pass; // Colide com o pass-through específico.
+    }
+}
+
+
+// 2. DEFINIÇÃO DO ALVO FINAL (Priorizando Pass-Through, depois Sólidos)
+
+// Checa colisão com plataformas sólidas (obj_wall ou obj_platform_unstable)
+if (_collision_target == noone)
+{
+    // Checamos obj_wall E obj_platform_unstable separadamente
+    
+    // A. Checagem de Plataforma Instável
+    _inst_instable = instance_place(x, y + vsp, obj_platform_unstable);
+
+    if (_inst_instable != noone)
+    {
+        // Se encontramos uma plataforma instável, ela é o nosso alvo de colisão.
+        _collision_target = _inst_instable; 
+    }
+    // B. Checagem de Plataforma Padrão
+    else if (place_meeting(x, y + vsp, obj_wall))
+    {
+        _collision_target = obj_wall;
+    }
+}
+
+
+// 3. RESOLUÇÃO DE COLISÃO COM O ALVO FINAL E LÓGICA DE QUEBRA
+
+// Se _collision_target for um objeto ou uma instância válida:
+if (_collision_target != noone)
+{
+    // Lógica de resulução robusta
+    while (!place_meeting(x, y + sign(vsp), _collision_target))
     {
         y = y + sign(vsp);
     }
     vsp = 0;
+    
+    // --- ATIVAÇÃO DA QUEBRA (NOVO) ---
+    // Se colidimos com uma plataforma instável e ela está estável:
+    if (_collision_target == _inst_instable && _inst_instable.break_timer == -1)
+    {
+        // Checa a velocidade horizontal do jogador (módulo)
+        if (abs(hsp) > _inst_instable.max_safe_speed) 
+        {
+            // Ativa a quebra se estiver rápido demais
+            _inst_instable.break_timer = 30; // 0.5 segundo para quebrar
+        }
+    }
 }
-y = y + vsp;
 
-// Debug
-if keyboard_check(ord("R")){
-	game_restart();
-}
-	
+y = y + vsp; // Movimento final
 #endregion
 
 #region 5
@@ -177,3 +252,8 @@ if (_key_consume)
     }
 }
 #endregion
+
+// Debug
+if keyboard_check(ord("R")){
+	game_restart();
+}

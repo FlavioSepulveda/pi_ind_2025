@@ -23,7 +23,7 @@ if (other.vsp > 0 && other.bbox_bottom < bbox_top + 5) // 5 pixels de tolerânci
     // 3. Se você tivesse um sistema de Double Jump, este seria o lugar
     // para resetar o contador de pulos aéreos do 'other' (o obj_bubu).
     
-    // O jogador recebe um SALTO PODEROSO e ganha altura
+    // O jogador recebe um SALTO PODEROSO e ganha alturaa
 }
 else
 {

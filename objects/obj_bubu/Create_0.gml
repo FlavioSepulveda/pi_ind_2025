@@ -11,6 +11,7 @@ spd_base = 4;    // Velocidade de "Andar Constante"
 spd_boost = spd_base * 1.15; // Velocidade de "Ritmo Firme" (115% do padrão)
 spd_sprint = spd_base * 1.50; // Velocidade de "Sprint" (150% do padrão)
 spd_exhaust = spd_base * 0.10; // Velocidade de "Exaustão" (10% do padrão)
+spd_slow = spd_base * 0.3; // NOVO: Velocidade de Andar Lento (30% da base)
 
 jump_force = -8; // Força de pulo
 can_jump = true; // Flag para controlar se pode pular

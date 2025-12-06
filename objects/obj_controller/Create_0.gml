@@ -1,8 +1,8 @@
 /// @desc Inicializa Variáveis Globais de Jogo (incluindo Taxas de Estamina)
 
 var _fps_rate = 60; // Taxa de quadros
-var _drain_per_sec = 10; // Drenagem de 10 por segundo (Ajustado para 10s de corrida)
-var _regen_per_sec = 5;  // Regeneração de 5 por segundo
+var _drain_per_sec = 25; // Drenagem de 10 por segundo (Ajustado para 10s de corrida)
+var _regen_per_sec = 2;  // Regeneração de 5 por segundo
 
 // As variáveis globais são acessadas por 'global.' e são visíveis em TODO O JOGO.
 global.stamina_drain_sprint = (_drain_per_sec / _fps_rate);
