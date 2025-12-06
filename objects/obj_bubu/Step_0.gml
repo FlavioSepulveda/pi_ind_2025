@@ -144,3 +144,36 @@ if keyboard_check(ord("R")){
 }
 	
 #endregion
+
+#region 5
+/// @desc Consumo de Cenouras para Recuperar Estamina
+
+var _key_consume = keyboard_check_pressed(vk_lcontrol); 
+
+if (_key_consume)
+{
+    // 1. Verificar se o jogador tem cenouras
+    if (carrots_collected > 0)
+    {
+        // 2. Encontrar e Consumir/Destruir uma instância de Cenoura que está a seguir
+        // Procura a primeira instância de obj_carrot que está no modo 'is_following' e a destruir.
+        var _carrot_to_destroy = instance_find(obj_carrot, 0); 
+        
+        // Precisa de ter a certeza de que a cenoura encontrada está a seguir ESTE jogador
+        if (instance_exists(_carrot_to_destroy) && _carrot_to_destroy.player_id == id)
+        {
+            instance_destroy(_carrot_to_destroy);
+        
+            // 3. Remover do Inventário (o mais importante!)
+            carrots_collected -= 1;
+            
+            // 4. Recuperar Estamina (+10)
+            stamina += 10;
+            
+            // 5. Garantir o limite
+            stamina = clamp(stamina, 0, stamina_max);
+        }
+        // Se o jogo tivesse vários jogadores, a lógica de procura (instance_find) teria que ser mais complexa.
+    }
+}
+#endregion

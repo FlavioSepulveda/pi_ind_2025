@@ -24,3 +24,6 @@ stamina_min_recovery = 10; // Mínimo para sair da Exaustão Total
 is_exhausted = false; // O coelho está no "cochilo" (Exaustão Total)?
 is_in_constancy = false; 
 constancy_timer = 0;
+
+// --- VARIÁVEIS DE COLETÁVEIS ---
+carrots_collected = 0; // Quantidade de cenouras coletadas. ESTA LINHA É ESSENCIAL.
