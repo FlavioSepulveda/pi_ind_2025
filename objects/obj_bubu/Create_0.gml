@@ -36,27 +36,16 @@ stamina_min_recovery = 10;
 
 // --- INICIALIZAÇÃO DE TAXAS GARANTIDAS ---
 
-// 1. Variável local para cálculo (SÓ EXISTE NO EVENTO CREATE)
+// --- CÓDIGO DE CRIAÇÃO PARA DEFINIÇÃO DE TAXAS (Executa ANTES do Evento Create) ---
+
 var _fps_rate = 60; 
 var _drain_per_sec = 10; 
 var _regen_per_sec = 5;  
 
-// 2. FORÇAR A DECLARAÇÃO COMO VARIÁVEL DE INSTÂNCIA USANDO OBJETO.VARIÁVEL
-// O GML agora é forçado a declarar estas como variáveis de INSTÂNCIA.
-obj_bubu.stamina_drain_sprint = 0;     
-obj_bubu.stamina_regen_constancy = 0;      
-obj_bubu.stamina_drain_walljump = 0;     
+// Definição das taxas por frame (usando 'self.' para clareza)
+self.stamina_drain_sprint = (_drain_per_sec / _fps_rate);
+self.stamina_regen_constancy = (_regen_per_sec / _fps_rate);
+self.stamina_drain_walljump = (5 / _fps_rate);
 
-// 3. Atribuição dos valores calculados (SEM USAR OBJ_BUBU. OU VAR)
-stamina_drain_sprint = (_drain_per_sec / _fps_rate);
-stamina_regen_constancy = (_regen_per_sec / _fps_rate);
-stamina_drain_walljump = (5 / _fps_rate); 
-
-// Outras variáveis dependentes
-constancy_time_req = 1.5 * _fps_rate;
-
-// --- VARIÁVEIS DE ESTADO ---
-is_exhausted = false; // O coelho está no "cochilo" (Exaustão)? [cite: 29]
-is_in_constancy = false; // Está no ritmo constante para regenerar?
-constancy_timer = 0;
-constancy_time_req = 1.5 * fps; // 1.5 segundos de constância para ganhar o boost/regen
+// Constante de tempo
+self.constancy_time_req = 1.5 * _fps_rate;

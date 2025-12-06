@@ -1,16 +1,19 @@
 #region 1
 // 1. INPUT E CÁLCULO DE MOVIMENTO HORIZONTAL (hsp)
 
-// CORREÇÃO: Declarar e inicializar a variável local _target_speed AQUI.
-var _target_speed = spd_sprint; // NOVO PADRÃO: Velocidade de Sprint por default
+// --- DECLARAÇÃO DE VARIÁVEIS LOCAIS NO ESCOPO MAIS ALTO ---
+// Declara e inicializa todas as variáveis locais importantes em uma única linha 'var'
+var 
+    _target_speed = spd_sprint, // Velocidade padrão
+    _key_h = (keyboard_check(vk_right) || keyboard_check(ord("D"))) - (keyboard_check(vk_left) || keyboard_check(ord("A"))), // Input horizontal
+    _key_grab = keyboard_check(vk_lshift), // Novo: Input de Agarrar (Shift)
+    _key_jump = keyboard_check_pressed(vk_space), // Input de Pulo
+    _stamina_low_threshold = stamina_max * 0.30, // 30% como limiar de "Cansaço Parcial"
+    _current_jump_force = jump_force, // Força de pulo atual
+    _is_touching_wall, // Para checar se está tocando na parede
+    _is_on_ground, // Para checar se está no chão
+    _wall_jump_dir; // Direção do pulo de parede
 
-// Receber inputs: (A/D ou Setas)
-var _key_h = (keyboard_check(vk_right) || keyboard_check(ord("D"))) 
-             - (keyboard_check(vk_left) || keyboard_check(ord("A")));
-
-// var _key_sprint = keyboard_check(vk_lshift); // REMOVIDO: Sprint é o estado padrão
-
-var _stamina_low_threshold = stamina_max * 0.30; // 30% como limiar de "Cansaço Parcial"
 
 // --- Lógica de Velocidade baseada na Estamina ---
 if (stamina <= 0)
