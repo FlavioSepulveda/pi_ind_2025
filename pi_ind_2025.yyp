@@ -51,6 +51,7 @@
     {"id":{"name":"spr_player","path":"sprites/spr_player/spr_player.yy",},},
     {"id":{"name":"spr_spike","path":"sprites/spr_spike/spr_spike.yy",},},
     {"id":{"name":"spr_spring","path":"sprites/spr_spring/spr_spring.yy",},},
+    {"id":{"name":"Sprite11","path":"sprites/Sprite11/Sprite11.yy",},},
   ],
   "resourceType":"GMProject",
   "resourceVersion":"2.0",
