@@ -6,6 +6,8 @@ var
     _target_speed = spd_sprint, 
     _key_h = (keyboard_check(vk_right) || keyboard_check(ord("D"))) - (keyboard_check(vk_left) || keyboard_check(ord("A"))),
     _key_grab = keyboard_check(vk_lshift), // Shift é o botão de Agarrar
+	_key_up = keyboard_check(vk_up) || keyboard_check(ord("W")), // NOVO: Input vertical para cima
+    _key_down = keyboard_check(vk_down) || keyboard_check(ord("S")), // NOVO: Input vertical para baixo
     _key_jump = keyboard_check_pressed(vk_space), 
     _stamina_low_threshold = stamina_max * 0.30, 
     _current_jump_force = jump_force, 
@@ -86,52 +88,75 @@ vsp = clamp(vsp, -max_vsp, max_vsp);
 // --- Lógica de Pulo e Pulo de Parede ---
 if (is_exhausted) 
 {
-    // Punição: Pulo desabilitado e sem agarre de parede (o bloco vazio já impede isso)
+    // Punição: Pulo desabilitado
 } 
 else 
 {
-    // --- 1. DEFINIÇÃO DE CONDIÇÕES DE CHÃO E PAREDE (CORRIGIDO) ---
+    // --- 1. DEFINIÇÃO DE CONDIÇÕES DE CHÃO, PAREDE E RESET ---
     
     // Checa se está tocando uma parede (obj_wall) usando o input horizontal
-    _is_touching_wall = place_meeting(x + _key_h, y, obj_wall);
-    
-    // CORREÇÃO CRÍTICA: Checa obj_wall, obj_platform_pass, e obj_platform_unstable para pouso.
+    _is_touching_wall = place_meeting(x + _key_h, y, obj_wall);
+    
+    // Checa se está no chão
 	_is_on_ground = place_meeting(x, y + 1, obj_wall) || place_meeting(x, y + 1, obj_platform_pass) || place_meeting(x, y + 1, obj_platform_unstable);
-	    
+	
+    // NOVO: Reseta a contagem de pulos aéreos ao tocar o chão
+    if (_is_on_ground) {
+        air_jumps_available = air_jumps_max;
+    }
+    
     // 2. Pulo de Parede (Agarrar/Wall Slide ATIVADO POR BOTÃO)
     // Se estiver tocando uma parede, no ar, e pressionando o botão de agarrar
     if (_is_touching_wall && !_is_on_ground && _key_grab)
     {
-        // CORREÇÃO: Drena 0.05 de Estamina por frame (Valor Seguro)
+        // --- ESCALADA DE PAREDE (Wall Climb) ---
+        if (_key_up) {
+            vsp = -2; // Velocidade de subida (negativa)
+            stamina -= 0.1; // Custo extra por esforço
+        }
+        // Wall Slide Padrão
+        else {
+            vsp = 0.5; // Wall Slide lento
+        }
+        
+        // CUSTO CONTÍNUO: Drena 0.05 de Estamina por frame (Valor Seguro)
         stamina -= 0.05;
-        vsp = 0.5; // Wall Slide
 
         // SE PULAR DURANTE O AGARRE (Wall Jump)
         if (_key_jump)
         {
             _wall_jump_dir = sign(_key_h); 
-            
-            // Aplica o impulso forte para longe da parede
             vsp = _current_jump_force * 1.5;
             hsp = -_wall_jump_dir * spd_sprint; 
-            
             stamina -= global.stamina_drain_walljump * 2; // Custo ALTO
+            air_jumps_available = air_jumps_max; // Reset total após Wall Jump
         }
     }
     
-    // Pulo Básico (só se estiver no chão E não em Exaustão)
-    else if (_key_jump && _is_on_ground) 
-    {
-        vsp = _current_jump_force; 
-        stamina -= global.stamina_drain_walljump; // Custo do Pulo Básico
-    }
-    
-    // REGENERAÇÃO (só se não estiver agarrando ou em exaustão)
-    else if (!is_exhausted && !_is_touching_wall)
-    {
-        // Se não estiver correndo, regenera o foco lentamente.
-        stamina = min(100, stamina + global.stamina_regen_constancy);
+else if (_key_jump) 
+{
+    if (_is_on_ground) {
+        // Pulo do Chão
+        vsp = _current_jump_force;
+        stamina -= global.stamina_drain_walljump;
+        air_jumps_available = air_jumps_max; // Garante o reset
     }
+    else if (air_jumps_available > 0) {
+        // CORREÇÃO CRÍTICA: Pulo Duplo (Air Jump)
+        vsp = 0; // Zera a velocidade vertical para garantir o impulso
+        vsp = _current_jump_force;
+        stamina -= global.stamina_drain_walljump * 0.75; // Custo menor
+        
+        air_jumps_available -= 1; // <<--- ESTA LINHA GASTA O PULO!
+    }
+}
+    
+    // REGENERAÇÃO (só se não estiver agarrando ou em exaustão)
+    else if (!is_exhausted && !_is_touching_wall)
+    {
+        // Se não estiver correndo, regenera o foco lentamente.
+        stamina = min(100, stamina + global.stamina_regen_constancy);
+    }
 }
 #endregion
 
@@ -174,21 +199,18 @@ if (vsp > 0) 
 // Checa colisão com plataformas sólidas (obj_wall ou obj_platform_unstable)
 if (_collision_target == noone)
 {
-    // Checamos obj_wall E obj_platform_unstable separadamente
-    
-    // A. Checagem de Plataforma Instável
-    _inst_instable = instance_place(x, y + vsp, obj_platform_unstable);
+    // A. Checagem de Plataforma Instável
+    _inst_instable = instance_place(x, y + vsp, obj_platform_unstable);
 
-    if (_inst_instable != noone)
-    {
-        // Se encontramos uma plataforma instável, ela é o nosso alvo de colisão.
-        _collision_target = _inst_instable; 
-    }
-    // B. Checagem de Plataforma Padrão
-    else if (place_meeting(x, y + vsp, obj_wall))
-    {
-        _collision_target = obj_wall;
-    }
+    if (_inst_instable != noone)
+    {
+        _collision_target = _inst_instable; 
+    }
+    // B. Checagem de Plataforma Padrão
+    else if (place_meeting(x, y + vsp, obj_wall))
+    {
+        _collision_target = obj_wall;
+    }
 }
 
 
@@ -203,17 +225,29 @@ if (_collision_target != noone)
         y = y + sign(vsp);
     }
     vsp = 0;
+    
+    // --- ATIVAÇÃO DA QUEBRA (Mantido) ---
+    // Se colidimos com uma plataforma instável e ela está estável:
+    if (_collision_target == _inst_instable && _inst_instable.break_timer == -1)
+    {
+        // Checa a velocidade horizontal do jogador (módulo)
+        if (abs(hsp) > _inst_instable.max_safe_speed) 
+        {
+            _inst_instable.break_timer = 30; // 0.5 segundo para quebrar
+        }
+    }
     
-    // --- ATIVAÇÃO DA QUEBRA (NOVO) ---
-    // Se colidimos com uma plataforma instável e ela está estável:
-    if (_collision_target == _inst_instable && _inst_instable.break_timer == -1)
+    // -----------------------------------------------------------------
+    // NOVO: DESLIZAMENTO RÁPIDO DA PLATAFORMA PASS-THROUGH
+    // -----------------------------------------------------------------
+    // Checamos a plataforma pass-through NO CHÃO após a colisão ser resolvida
+    var _inst_pass_landing = instance_place(x, y + 1, obj_platform_pass);
+    
+    // Se o jogador está no chão E pressionou a tecla para baixo
+    if (_inst_pass_landing != noone && _key_down) 
     {
-        // Checa a velocidade horizontal do jogador (módulo)
-        if (abs(hsp) > _inst_instable.max_safe_speed) 
-        {
-            // Ativa a quebra se estiver rápido demais
-            _inst_instable.break_timer = 30; // 0.5 segundo para quebrar
-        }
+        y += 1; // Move o jogador 1 pixel para baixo
+        vsp = 1; // Força uma pequena velocidade de queda para sair da colisão no próximo frame
     }
 }
 
